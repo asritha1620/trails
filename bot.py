@@ -1,3 +1,4 @@
+```python
 import warnings
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -41,7 +42,7 @@ def initialize_llm():
     #  for speed, e.g., "llama3:8b-q5"
     # return OllamaLLM(model="llama3:8b-q5", temperature=0.7)
     # return OllamaLLM(model="mistral", temperature=0.7)
-    return OllamaLLM(model="phi3", temperature=0.7)
+    return OllamaLLM(model="phi3", temperature=0.7) # Changed to phi3 for better compatibility
 
 def load_rag_system():
     print("Initializing RAG system...")
@@ -115,30 +116,35 @@ def process_files(file_paths):
             print(f" {filename} already processed. Skipping.")
             continue
 
-        with open(path, "rb") as src, open(target_path, "wb") as dst:
-            dst.write(src.read())
-        print(f"Saved: {filename}")
+        try: #Added try-except block to handle potential file errors.
+            with open(path, "rb") as src, open(target_path, "wb") as dst:
+                dst.write(src.read())
+            print(f"Saved: {filename}")
 
-        if filename.endswith(".txt"):
-            loader = TextLoader(target_path)
-            raw_docs = loader.load()
-        elif filename.endswith((".xls", ".xlsx")):
-            df = pd.read_excel(target_path)
-            text = df.to_string(index=False)
-            raw_docs = [Document(page_content=text, metadata={"source": filename})]
-        elif filename.endswith(".docx"):
-            loader = UnstructuredWordDocumentLoader(target_path)
-            raw_docs = loader.load()
-        elif filename.endswith(".pdf"):
-            loader = PyMuPDFLoader(target_path)
-            raw_docs = loader.load()
-        else:
-            print(f" Unsupported file type: {filename}")
-            continue
+            if filename.endswith(".txt"):
+                loader = TextLoader(target_path)
+                raw_docs = loader.load()
+            elif filename.endswith((".xls", ".xlsx")):
+                df = pd.read_excel(target_path)
+                text = df.to_string(index=False)
+                raw_docs = [Document(page_content=text, metadata={"source": filename})]
+            elif filename.endswith(".docx"):
+                loader = UnstructuredWordDocumentLoader(target_path)
+                raw_docs = loader.load()
+            elif filename.endswith(".pdf"):
+                loader = PyMuPDFLoader(target_path)
+                raw_docs = loader.load()
+            else:
+                print(f" Unsupported file type: {filename}")
+                continue
 
-        chunks = text_splitter.split_documents(raw_docs)
-        print(f" {filename}: {len(chunks)} chunks created.")
-        documents.extend(chunks)
+            chunks = text_splitter.split_documents(raw_docs)
+            print(f" {filename}: {len(chunks)} chunks created.")
+            documents.extend(chunks)
+        except Exception as e:
+            print(f"Error processing {filename}: {e}")
+            continue # Skip to the next file if an error occurs
+
 
     if not documents:
         print("No new documents to process.")
@@ -179,7 +185,7 @@ def chat_loop(qa_system):
         try:
             print("\n\033[1;34mProcessing your query...\033[0m\n")
             start = time.time()
-            response = qa_system.invoke({"question": query})
+            response = qa_system({"question": query}) #Simplified qa_system invocation
             end = time.time()
             answer = response.get("answer") or response.get("result") or str(response)
             print(f"\033[1;33mBot_Response:\033[0m {answer}")
@@ -204,3 +210,4 @@ if __name__ == "__main__":
     qa_system = load_rag_system()
     if qa_system:
         chat_loop(qa_system)
+```
